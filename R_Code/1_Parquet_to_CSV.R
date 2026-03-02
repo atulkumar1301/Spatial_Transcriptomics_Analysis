@@ -1,0 +1,5 @@
+library(nanoparquet)
+library(data.table)
+options(scipen = 999)
+df <- read_parquet("~/OneDrive - University of Eastern Finland/Projects/Minna_Spatial_Transcriptomics_Data/Doxo_hearts_R2__20250416__172150/transcripts.parquet")
+write.table (df, (file = paste0 ("~/OneDrive - University of Eastern Finland/Projects/Minna_Spatial_Transcriptomics_Data/Doxo_hearts_R2__20250416__172150/Baysor_Files/transcripts.csv")), sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
