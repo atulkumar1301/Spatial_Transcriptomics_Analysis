@@ -5,9 +5,9 @@ library(ggplot2)
 library(arrow)
 library(sctransform)
 library(spacexr)
+options(future.globals.maxSize = 1000 * 1024^2)
 
-
-path <- "~/OneDrive - University of Eastern Finland/Projects/Minna_Spatial_Transcriptomics_Data/Control_Aortas_01__20250416__172150/Xenium_Ranger/baysor-demo/outs/"
+path <- "~/OneDrive - University of Eastern Finland/Projects/Minna_Spatial_Transcriptomics_Data/Control_Aortas_R2__20250416__172150/Xenium_Ranger/baysor-demo/outs/"
 
 # Load the Xenium data
 xenium.obj <- LoadXenium(path, fov = "fov", segmentations = "cell")
@@ -15,27 +15,39 @@ xenium.obj <- LoadXenium(path, fov = "fov", segmentations = "cell")
 # remove cells with 0 counts
 xenium.obj <- subset(xenium.obj, subset = nCount_Xenium > 0)
 
+#QC Plot
 VlnPlot(xenium.obj, features = c("nFeature_Xenium", "nCount_Xenium"), ncol = 2, pt.size = 0)
 
-xenium.obj$nCount_Xenium
+#Position of Key Marker
+ImageDimPlot(xenium.obj, fov = "fov", molecules = c("Pecam1", "Cdh5", "Fli1", "Tek", "Ptprb", "Acta2", "Myh11", "Tagln", "Cd45", "Cytl1", "Gpihbp1", "Pdgfra", "Col1a1", "Lum", "Dcn"), nmols = 20000)
 
+#Expression Level of Key Marker gene
+ImageFeaturePlot(xenium.obj, features = c("Pecam1", "Cdh5", "Fli1", "Tek", "Ptprb", "Acta2", "Myh11", "Tagln", "Cd45", "Cytl1", "Gpihbp1", "Pdgfra", "Col1a1", "Lum", "Dcn"), max.cutoff = c(25,
+                                                                                             35, 12, 10), size = 0.75, cols = c("white", "red"))
+#SCTransform for normalization
 xenium.obj <- SCTransform(xenium.obj, assay = "Xenium")
 
+#dimensionality reduction
 xenium.obj <- RunPCA(xenium.obj, npcs = 30, features = rownames(xenium.obj))
 
+#clustering
 xenium.obj <- RunUMAP(xenium.obj, dims = 1:30)
 
 xenium.obj <- FindNeighbors(xenium.obj, reduction = "pca", dims = 1:30)
 
 xenium.obj <- FindClusters(xenium.obj, resolution = 0.3)
 
+#UMAP clustering
 DimPlot(xenium.obj)
 
-FeaturePlot(xenium.obj, features = c("Myh11", "Acta2", "Tagln", "Col1a1", "Dcn", "Lum", "Cdh5", "Pecam1", "Vwf", "Cd68", "Adgre1", "Gpnmb"))
+#Expression level of the markers genes
+FeaturePlot(xenium.obj, features = c("Pecam1", "Cdh5", "Fli1", "Tek", "Ptprb", "Acta2", "Myh11", "Tagln", "Cd45", "Cytl1", "Gpihbp1", "Pdgfra", "Col1a1", "Lum", "Dcn"))
 
+#Cell position by cluster
 ImageDimPlot(xenium.obj, cols = "polychrome", size = 0.75)
 
-
+#RCTD
+#Seurat Query Object
 query.counts <- GetAssayData(xenium.obj, assay = "Xenium", layer = "counts")[, Cells(xenium.obj)]
 
 coords <- GetTissueCoordinates(xenium.obj, which = "centroids")
@@ -46,7 +58,7 @@ coords$cell <- NULL
 
 query <- SpatialRNA(coords, query.counts, colSums(query.counts))
 
-
+#Reference Object
 mouse.aortas.ref <- readRDS("~/OneDrive - University of Eastern Finland/Projects/Minna_Spatial_Transcriptomics_Data/Mouse_Aortas.rds")
 mouse.aortas.ref <- UpdateSeuratObject(mouse.aortas.ref)
 
@@ -98,3 +110,9 @@ niche.plot <- ImageDimPlot(xenium.obj, group.by = "niches", size = 1.5, dark.bac
   scale_fill_manual(values = c("#442288", "#6CA2EA", "#B5D33D", "#FED23F", "#EB7D5B"))
 
 celltype.plot | niche.plot
+
+#DimPlot(xenium.obj, group.by = "predicted.celltype")
+
+niche_df <- table(xenium.obj$predicted.celltype, xenium.obj$niches)
+
+write.table(niche_df, "~/OneDrive - University of Eastern Finland/Projects/Minna_Spatial_Transcriptomics_Data/Control_Aortas_R2__20250416__172150/Annotation_Results/Niche_Enrichment_Distinct_Cell_types.txt", , sep="\t", quote=FALSE, row.names=TRUE, col.names=TRUE)
